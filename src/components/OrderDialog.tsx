@@ -380,7 +380,7 @@ const OrderDialog = ({ isOpen, onClose, size, pack, price }: OrderDialogProps) =
             setCaptchaToken(null);
             console.log("Turnstile expired-callback: Token set to null.");
           },
-          "error-callback": (e: any) => {
+          "error-callback": (e: unknown) => {
             setCaptchaError("captcha_load_error");
             console.error("Turnstile error-callback: captcha_load_error", e);
           },
@@ -388,7 +388,7 @@ const OrderDialog = ({ isOpen, onClose, size, pack, price }: OrderDialogProps) =
         setCaptchaError(null);
         renderedRef.current = true;
         console.log("Turnstile rendered successfully with captchaRef.current.");
-      } catch (e: any) {
+      } catch (e: unknown) {
         setCaptchaError("captcha_render_exception");
         console.error("Turnstile render failed:", e);
       }

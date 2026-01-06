@@ -16,14 +16,31 @@ function send(res, status, data) {
 
 function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", ORIGIN || "*");
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type,X-Admin-Token,X-Captcha-Token");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  if (ORIGIN && ORIGIN !== "*") res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Max-Age", "600");
+}
+
+function setSecurityHeaders(res) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 }
 
 async function readBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
-    req.on("data", (c) => (body += c));
+    const MAX = 1024 * 1024;
+    req.on("data", (c) => {
+      body += c;
+      if (body.length > MAX) {
+        reject(new Error("payload_too_large"));
+      }
+    });
     req.on("end", () => {
       try {
         resolve(body ? JSON.parse(body) : {});
@@ -90,7 +107,7 @@ function rateLimit(key, cap = 5, refillMs = 60000) {
 
 async function verifyCaptchaDetailed(token, remoteip, maxRetries = 3) {
   if (!CAPTCHA_REQUIRED || CAPTCHA_REQUIRED === "false") return { ok: true };
-  console.log("Verifying CAPTCHA. Token:", token, "Remote IP:", remoteip);
+  if (process.env.NODE_ENV !== "production") console.log("Verifying CAPTCHA. Token:", token, "Remote IP:", remoteip);
   const t = String(token || "").trim();
   if (!t) return { ok: false, reason: "missing_token" };
   if (!TURNSTILE_SECRET) return { ok: true };
@@ -105,7 +122,7 @@ async function verifyCaptchaDetailed(token, remoteip, maxRetries = 3) {
         body: body.toString(),
       });
       const data = await resp.json().catch(() => ({}));
-      console.log("Cloudflare Turnstile API response:", data);
+      if (process.env.NODE_ENV !== "production") console.log("Cloudflare Turnstile API response:", data);
       if (resp.ok && data && data.success) return { ok: true };
       if (attempt === maxRetries) {
         const reason = (data && (data["error-codes"]?.[0] || data.message)) ? (data["error-codes"]?.[0] || data.message) : "invalid_token";
@@ -167,6 +184,7 @@ async function sendWhatsApp(phone, text) {
 
 const server = http.createServer(async (req, res) => {
   setCors(res);
+  setSecurityHeaders(res);
   if (req.method === "OPTIONS") {
     res.statusCode = 204;
     return res.end();
@@ -200,8 +218,11 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === "GET" && url.pathname === "/api/orders") {
     const token = req.headers["x-admin-token"] || url.searchParams.get("token");
-    if (!ADMIN_API_TOKEN || token !== ADMIN_API_TOKEN) return send(res, 403, { error: "forbidden" });
-    const limit = Number(url.searchParams.get("limit") || 50);
+    if (!ADMIN_API_TOKEN) return send(res, 403, { error: "forbidden" });
+    const t = typeof token === "string" ? token : "";
+    const ok = t.length === ADMIN_API_TOKEN.length && crypto.timingSafeEqual(Buffer.from(t), Buffer.from(ADMIN_API_TOKEN));
+    if (!ok) return send(res, 403, { error: "forbidden" });
+    const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("limit") || 50)));
     const { data, error } = await supabase
       .from("orders")
       .select("id,customername,phone,address,bundle,price,deliverycharge,total,status,created_at")
@@ -245,6 +266,7 @@ const server = http.createServer(async (req, res) => {
     try {
       body = await readBody(req);
     } catch (e) {
+      if (e && e.message === "payload_too_large") return send(res, 413, { error: "payload_too_large" });
       return send(res, 400, { error: "invalid_json" });
     }
     const parsed = orderSchema.safeParse(body);
@@ -315,7 +337,8 @@ const server = http.createServer(async (req, res) => {
     let body;
     try {
       body = await readBody(req);
-    } catch (_) {
+    } catch (e) {
+      if (e && e.message === "payload_too_large") return send(res, 413, { error: "payload_too_large" });
       return send(res, 400, { error: "invalid_json" });
     }
     return send(res, 200, { ok: true });
@@ -324,7 +347,8 @@ const server = http.createServer(async (req, res) => {
     let body;
     try {
       body = await readBody(req);
-    } catch (_) {
+    } catch (e) {
+      if (e && e.message === "payload_too_large") return send(res, 413, { error: "payload_too_large" });
       return send(res, 400, { error: "invalid_json" });
     }
     const schema = z
