@@ -64,6 +64,7 @@ const orderSchema = z.object({
   address: z.string().min(1),
   areaId: z.string().uuid().optional(),
   deliveryCharge: z.number().min(0).optional(),
+  instruction: z.string().max(500).transform((s) => s.trim()).optional(),
 });
 
 function normalizePhone(p) {
@@ -271,7 +272,7 @@ const server = http.createServer(async (req, res) => {
     }
     const parsed = orderSchema.safeParse(body);
     if (!parsed.success) return send(res, 400, { error: "validation_failed", details: parsed.error.flatten() });
-    const { bundleId, customerName, phone, address, areaId, deliveryCharge: dc } = parsed.data;
+    const { bundleId, customerName, phone, address, areaId, deliveryCharge: dc, instruction } = parsed.data;
     const { data: bundle, error: bundleErr } = await supabase.from("bundles").select("id,price").eq("id", bundleId).maybeSingle();
     if (bundleErr) return send(res, 500, { error: bundleErr.message });
     if (!bundle) return send(res, 404, { error: "bundle_not_found" });
@@ -288,7 +289,7 @@ const server = http.createServer(async (req, res) => {
     const total = price + deliveryCharge;
     const { data: order, error: orderErr } = await supabase
       .from("orders")
-      .insert({ customername: customerName, phone, address, bundle: bundleId, price, deliverycharge: deliveryCharge, total, status: "pending" })
+      .insert({ customername: customerName, phone, address, bundle: bundleId, price, deliverycharge: deliveryCharge, total, status: "pending", instruction })
       .select("*")
       .single();
     if (orderErr) return send(res, 500, { error: orderErr.message });

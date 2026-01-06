@@ -38,6 +38,7 @@ export async function createOrder(input: {
   address: string;
   areaId?: string;
   deliveryCharge?: number;
+  instruction?: string;
   captchaToken?: string;
 }): Promise<{ order: unknown; payment: unknown }> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };

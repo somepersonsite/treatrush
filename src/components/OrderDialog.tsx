@@ -448,6 +448,7 @@ const OrderDialog = ({ isOpen, onClose, size, pack, price }: OrderDialogProps) =
         phone: formData.phone,
         address: formData.address,
         deliveryCharge,
+        instruction: formData.notes.trim() ? formData.notes.trim() : undefined,
         captchaToken: captchaToken || undefined,
       });
       const total = Number((res as { order?: { total?: number } })?.order?.total) || price + deliveryCharge;
