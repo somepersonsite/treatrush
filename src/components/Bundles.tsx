@@ -28,15 +28,15 @@ const Bundles = () => {
   };
 
   const mediumBundles = [
-    { pack: 3, price: 399, description: "Perfect for trying out our flavors" },
-    { pack: 5, price: 699, description: "Great for small gatherings" },
-    { pack: 7, price: 899, description: "Best value for families" }
+    { pack: 3, price: 250, description: "Perfect for trying out our flavors" },
+    { pack: 5, price: 450, description: "Great for small gatherings" },
+    { pack: 7, price: 650, description: "Best value for families" }
   ];
 
   const largeBundles = [
-    { pack: 3, price: 499, description: "Perfect for a small gathering" },
-    { pack: 5, price: 799, description: "Great for family fun" },
-    { pack: 7, price: 999, description: "Best value for parties" }
+    { pack: 3, price: 350, description: "Perfect for a small gathering" },
+    { pack: 5, price: 550, description: "Great for family fun" },
+    { pack: 7, price: 750, description: "Best value for parties" }
   ];
 
   const handleBuyNow = (size: string, pack: number, price: number) => {
